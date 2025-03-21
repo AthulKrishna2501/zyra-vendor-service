@@ -12,16 +12,30 @@ type Config struct {
 }
 
 func LoadConfig() (cfg Config, err error) {
-	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
-	viper.SetConfigFile("../.env")
-	if err := viper.ReadInConfig(); err != nil {
-		log.Fatalf("Error reading .env file: %v", err)
-	}
-
 	viper.AutomaticEnv()
 
-	err = viper.Unmarshal(&cfg)
+	viper.SetConfigFile(".env")
+	if err := viper.ReadInConfig(); err == nil {
+		log.Println("Loaded .env from the current directory")
+	} else {
+		log.Println("Could not load .env from current directory, trying parent...")
 
+		viper.SetConfigFile("../.env")
+		if err := viper.ReadInConfig(); err == nil {
+			log.Println("Loaded .env from parent directory")
+		} else {
+			log.Println("Could not load .env from parent directory, trying absolute path...")
+
+			viper.SetConfigFile("/app/.env")
+			if err := viper.ReadInConfig(); err == nil {
+				log.Println("Loaded .env from absolute path (/app/.env)")
+			} else {
+				log.Fatalf("Error loading .env file: %v", err)
+			}
+		}
+	}
+
+	err = viper.Unmarshal(&cfg)
 	return
 }
