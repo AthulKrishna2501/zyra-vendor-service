@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"errors"
+	"log"
 
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
+	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models/responses"
 	"gorm.io/gorm"
 )
 
@@ -18,6 +20,7 @@ type VendorRepository interface {
 	HasRequestedCategory(ctx context.Context, vendorID string) (bool, error)
 	ListCategories(ctx context.Context) ([]models.Category, error)
 	UpdateCategoryRequestStatus(ctx context.Context, vendorID, categoryID, status string) error
+	FindVendorProfile(ctx context.Context, VendorID string) (*responses.VendorProfileResponse, error)
 }
 
 func NewVendorRepository(db *gorm.DB) VendorRepository {
@@ -86,4 +89,35 @@ func (r *VendorStorage) UpdateCategoryRequestStatus(ctx context.Context, vendorI
 		return errors.New("category request not found")
 	}
 	return nil
+}
+
+func (r *VendorStorage) FindVendorProfile(ctx context.Context, vendorID string) (*responses.VendorProfileResponse, error) {
+	var vendorProfile responses.VendorProfileResponse
+	err := r.DB.
+		Table("users").
+		Select("users.user_id, user_details.first_name, user_details.last_name, users.email, user_details.profile_image, user_details.phone, users.status").
+		Joins("JOIN user_details ON user_details.user_id = users.user_id").
+		Where("users.user_id = ? AND users.role = ?", vendorID, "vendor").
+		First(&vendorProfile).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	log.Print("Vendor Profile details:",vendorProfile)
+
+	response := &responses.VendorProfileResponse{
+		UserID:     vendorProfile.UserID,
+		FirstName:    vendorProfile.FirstName,
+		LastName:     vendorProfile.LastName,
+		Email:        vendorProfile.Email,
+		ProfileImage: vendorProfile.ProfileImage,
+		PhoneNumber:  vendorProfile.PhoneNumber,
+		RequestStatus: vendorProfile.RequestStatus,
+	
+		// Categories:   vendorProfile.Categories,
+		// Bio:          vendorProfile.Bio,
+	}
+
+	return response, nil
 }

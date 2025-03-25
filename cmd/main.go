@@ -37,5 +37,4 @@ func main() {
 	log.Info("HTTP Server started on port 3004")
 	router.Run(":3004")
 
-	select {}
 }

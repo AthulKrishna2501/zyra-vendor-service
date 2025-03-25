@@ -96,3 +96,21 @@ func (s *VendorService) ApproveRejectCategory(ctx context.Context, req *pb.Appro
 		Message: fmt.Sprintf("Category request has been %s", req.Status),
 	}, nil
 }
+
+func (s *VendorService) VendorProfile(ctx context.Context, req *pb.VendorProfileRequest) (*pb.VendorProfileResponse, error) {
+	vendor, err := s.vendorRepo.FindVendorProfile(ctx, req.VendorId)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.VendorProfileResponse{
+		UserId:        vendor.UserID,
+		FirstName:     vendor.FirstName,
+		LastName:      vendor.LastName,
+		Email:         vendor.Email,
+		PhoneNumber:   vendor.PhoneNumber,
+		ProfileImage:  vendor.ProfileImage,
+		RequestStatus: vendor.RequestStatus,
+	}, nil
+
+}
