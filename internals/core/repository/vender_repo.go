@@ -21,6 +21,7 @@ type VendorRepository interface {
 	ListCategories(ctx context.Context) ([]models.Category, error)
 	UpdateCategoryRequestStatus(ctx context.Context, vendorID, categoryID, status string) error
 	FindVendorProfile(ctx context.Context, VendorID string) (*responses.VendorProfileResponse, error)
+	UpdateVendorProfile(ctx context.Context, vendorID string, updateData map[string]interface{}) error
 }
 
 func NewVendorRepository(db *gorm.DB) VendorRepository {
@@ -104,20 +105,35 @@ func (r *VendorStorage) FindVendorProfile(ctx context.Context, vendorID string) 
 		return nil, err
 	}
 
-	log.Print("Vendor Profile details:",vendorProfile)
+	log.Print("Vendor Profile details:", vendorProfile)
 
 	response := &responses.VendorProfileResponse{
-		UserID:     vendorProfile.UserID,
-		FirstName:    vendorProfile.FirstName,
-		LastName:     vendorProfile.LastName,
-		Email:        vendorProfile.Email,
-		ProfileImage: vendorProfile.ProfileImage,
-		PhoneNumber:  vendorProfile.PhoneNumber,
+		UserID:        vendorProfile.UserID,
+		FirstName:     vendorProfile.FirstName,
+		LastName:      vendorProfile.LastName,
+		Email:         vendorProfile.Email,
+		ProfileImage:  vendorProfile.ProfileImage,
+		PhoneNumber:   vendorProfile.PhoneNumber,
 		RequestStatus: vendorProfile.RequestStatus,
-	
+
 		// Categories:   vendorProfile.Categories,
 		// Bio:          vendorProfile.Bio,
 	}
 
 	return response, nil
+}
+
+
+func (r *VendorStorage) UpdateVendorProfile(ctx context.Context, vendorID string, updateData map[string]interface{}) error {
+	err := r.DB.WithContext(ctx).
+		Table("user_details").
+		Where("user_id = ?", vendorID).
+		Updates(updateData).Error
+
+	if err != nil {
+		log.Printf("Error updating vendor profile: %v", err)
+		return err
+	}
+
+	return nil
 }

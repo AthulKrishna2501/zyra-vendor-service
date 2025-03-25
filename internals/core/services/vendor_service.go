@@ -114,3 +114,36 @@ func (s *VendorService) VendorProfile(ctx context.Context, req *pb.VendorProfile
 	}, nil
 
 }
+
+func (s *VendorService) UpdateProfile(ctx context.Context, req *pb.UpdateVendorProfileRequest) (*pb.UpdateVendorProfileResponse, error) {
+	updateData := map[string]interface{}{}
+
+	if *req.FirstName != "" {
+		updateData["first_name"] = req.FirstName
+	}
+	if *req.LastAme != "" {
+		updateData["last_name"] = req.LastAme
+	}
+	if *req.ProfileImage != "" {
+		updateData["profile_image"] = req.ProfileImage
+	}
+	if *req.PhoneNumber != "" {
+		updateData["phone"] = req.PhoneNumber
+	}
+	if *req.Bio != "" {
+		updateData["bio"] = req.Bio
+	}
+
+	if len(updateData) == 0 {
+		return nil, status.Error(codes.InvalidArgument, "No fields provided for update")
+	}
+
+	err := s.vendorRepo.UpdateVendorProfile(ctx, req.VendorId, updateData)
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return &pb.UpdateVendorProfileResponse{
+		Message: "Vendor profile updated successfully",
+	}, nil
+}

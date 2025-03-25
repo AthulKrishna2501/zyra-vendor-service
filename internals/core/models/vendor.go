@@ -29,6 +29,7 @@ type VendorCategory struct {
 	ID         uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	VendorID   string    `gorm:"type:varchar(255);not null"`
 	CategoryID string    `gorm:"type:varchar(255);not null"`
+	Bio        string    `gorm:"type:varchar(255)"`
 
 	User     models.User `gorm:"foreignKey:VendorID;references:UserID;constraint:OnDelete:CASCADE"`
 	Category Category    `gorm:"foreignKey:CategoryID;references:ID;constraint:OnDelete:CASCADE"`
