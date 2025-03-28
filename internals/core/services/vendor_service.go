@@ -2,14 +2,19 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	pb "github.com/AthulKrishna2501/proto-repo/vendor"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/app/config"
+	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/repository"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -40,16 +45,16 @@ func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCate
 		return nil, status.Errorf(codes.NotFound, "Category does not exist")
 	}
 
-	if err := s.vendorRepo.RequestCategory(ctx, req.VendorId, req.CategoryId); err != nil {
-		return nil, status.Errorf(codes.Internal, "Failed to create request: %v", err)
-	}
-
 	alreadyRequested, err := s.vendorRepo.HasRequestedCategory(ctx, req.VendorId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to check existing request: %v", err)
 	}
 	if alreadyRequested {
 		return nil, status.Errorf(codes.AlreadyExists, "Vendor has already requested for category")
+	}
+
+	if err := s.vendorRepo.RequestCategory(ctx, req.VendorId, req.CategoryId); err != nil {
+		return nil, status.Errorf(codes.Internal, "Failed to create request: %v", err)
 	}
 
 	return &pb.RequestCategoryResponse{
@@ -68,10 +73,8 @@ func (s *VendorService) ListCategory(ctx context.Context, req *pb.ListCategoryRe
 	var categoryResponses []*pb.Category
 	for _, cat := range categories {
 		categoryResponses = append(categoryResponses, &pb.Category{
-			CategoryId:   cat.CategoryID,
+			CategoryId:   cat.CategoryID.String(),
 			CategoryName: cat.CategoryName,
-			Title:        cat.Title,
-			Image:        cat.Image,
 		})
 	}
 
@@ -98,7 +101,12 @@ func (s *VendorService) ApproveRejectCategory(ctx context.Context, req *pb.Appro
 }
 
 func (s *VendorService) VendorProfile(ctx context.Context, req *pb.VendorProfileRequest) (*pb.VendorProfileResponse, error) {
-	vendor, err := s.vendorRepo.FindVendorProfile(ctx, req.VendorId)
+	vendorUUID, err := uuid.Parse(req.VendorId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID format: %v", err)
+	}
+
+	vendor, err := s.vendorRepo.FindVendorProfile(ctx, vendorUUID)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
@@ -111,8 +119,8 @@ func (s *VendorService) VendorProfile(ctx context.Context, req *pb.VendorProfile
 		PhoneNumber:   vendor.PhoneNumber,
 		ProfileImage:  vendor.ProfileImage,
 		RequestStatus: vendor.RequestStatus,
+		Categories:    vendor.Category,
 	}, nil
-
 }
 
 func (s *VendorService) UpdateProfile(ctx context.Context, req *pb.UpdateVendorProfileRequest) (*pb.UpdateVendorProfileResponse, error) {
@@ -128,6 +136,9 @@ func (s *VendorService) UpdateProfile(ctx context.Context, req *pb.UpdateVendorP
 		updateData["profile_image"] = req.ProfileImage
 	}
 	if *req.PhoneNumber != "" {
+		if len(*req.PhoneNumber) != 10 {
+			return nil, fmt.Errorf("phone number should be 10 digits of length")
+		}
 		updateData["phone"] = req.PhoneNumber
 	}
 	if *req.Bio != "" {
@@ -138,12 +149,123 @@ func (s *VendorService) UpdateProfile(ctx context.Context, req *pb.UpdateVendorP
 		return nil, status.Error(codes.InvalidArgument, "No fields provided for update")
 	}
 
-	err := s.vendorRepo.UpdateVendorProfile(ctx, req.VendorId, updateData)
+	vendorUUID, err := uuid.Parse(req.VendorId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid vendor ID format: %v", err)
+	}
+
+	err = s.vendorRepo.UpdateVendorProfile(ctx, vendorUUID, updateData)
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	return &pb.UpdateVendorProfileResponse{
 		Message: "Vendor profile updated successfully",
+	}, nil
+}
+
+func (s *VendorService) CreateService(ctx context.Context, req *pb.CreateServiceRequest) (*pb.CreateServiceResponse, error) {
+	serviceID := uuid.New()
+
+	vendor, err := s.vendorRepo.GetVendorStatus(req.VendorId)
+	if err != nil {
+		return nil, errors.New("vendor not found")
+	}
+
+	if vendor.Status != "approved" {
+		return nil, errors.New("vendor is not approved to add a service")
+	}
+
+	var availableDate time.Time
+	if len(req.AvailableDates) > 0 && req.AvailableDates[0] != nil {
+		availableDate = req.AvailableDates[0].AsTime()
+	}
+
+	service := models.Service{
+		ID:                 serviceID,
+		VendorID:           uuid.MustParse(req.VendorId),
+		ServiceTitle:       req.ServiceTitle,
+		AvailableDate:      availableDate,
+		YearOfExperience:   int(req.YearOfExperience),
+		ServiceDescription: req.ServiceDescription,
+		CancellationPolicy: req.CancellationPolicy,
+		TermsAndConditions: req.TermsAndConditions,
+		ServiceDuration:    int(req.ServiceDuration),
+		ServicePrice:       int(req.ServicePrice),
+	}
+
+	if err := s.vendorRepo.CreateService(&service); err != nil {
+		return nil, err
+	}
+
+	return &pb.CreateServiceResponse{
+		Message: "Service Created successfully",
+	}, nil
+
+}
+
+func (s *VendorService) UpdateService(ctx context.Context, req *pb.UpdateServiceRequest) (*pb.UpdateServiceResponse, error) {
+
+	serviceUUID, err := uuid.Parse(req.ServiceId)
+	if err != nil {
+		return nil, fmt.Errorf("invalid service ID format: %v", err)
+	}
+
+	var availableDate time.Time
+	if len(req.AvailableDates) > 0 && req.AvailableDates[0] != nil {
+		availableDate = req.AvailableDates[0].AsTime()
+	}
+
+	updatedService := models.Service{
+		ID:                 serviceUUID,
+		ServiceTitle:       req.ServiceTitle,
+		YearOfExperience:   int(req.YearOfExperience),
+		ServiceDescription: req.ServiceDescription,
+		AvailableDate:      availableDate,
+		CancellationPolicy: req.CancellationPolicy,
+		TermsAndConditions: req.TermsAndConditions,
+		ServiceDuration:    int(req.ServiceDuration),
+		ServicePrice:       int(req.ServicePrice),
+	}
+
+	if req.AdditionalHourPrice != nil {
+		price := int(*req.AdditionalHourPrice)
+		updatedService.AdditionalHourPrice = &price
+	}
+
+	err = s.vendorRepo.UpdateService(serviceUUID, updatedService)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update service: %v", err)
+	}
+
+	return &pb.UpdateServiceResponse{
+		Message: "Service Updated Successfully",
+	}, nil
+
+}
+
+func (s *VendorService) ChangePassword(ctx context.Context, req *pb.ChangePasswordRequest) (*pb.ChangePasswordResponse, error) {
+	vendor, err := s.vendorRepo.GetVendorByID(req.VendorId)
+	if err != nil {
+		return nil, errors.New("vendor not found")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(vendor.Password), []byte(req.CurrentPassword))
+	if err != nil {
+		return nil, errors.New("incorrect current password")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, errors.New("failed to hash new password")
+	}
+
+	err = s.vendorRepo.UpdateVendorPassword(req.VendorId, string(hashedPassword))
+	if err != nil {
+		return nil, errors.New("failed to update password")
+	}
+
+	return &pb.ChangePasswordResponse{
+		Message: "Password changed successfully",
 	}, nil
 }
