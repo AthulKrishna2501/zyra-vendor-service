@@ -40,3 +40,11 @@ type Service struct {
 
 	Vendor models.User `gorm:"foreignKey:VendorID;references:ID;constraint:OnDelete:CASCADE"`
 }
+
+type VendorCategory struct {
+	ID         uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
+	VendorID   uuid.UUID `json:"vendor_id" gorm:"type:uuid;not null"`
+	CategoryID uuid.UUID `json:"category_id" gorm:"type:uuid;not null"`
+	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
+}

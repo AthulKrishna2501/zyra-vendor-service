@@ -31,5 +31,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.Category{},
 		&models.CategoryRequest{},
 		&models.Service{},
+		&models.VendorCategory{},
 	)
 }
