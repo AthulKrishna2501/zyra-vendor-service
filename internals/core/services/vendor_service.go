@@ -269,3 +269,60 @@ func (s *VendorService) ChangePassword(ctx context.Context, req *pb.ChangePasswo
 		Message: "Password changed successfully",
 	}, nil
 }
+
+func (s *VendorService) GetVendorDashboard(ctx context.Context, req *pb.GetVendorDashboardRequest) (*pb.GetVendorDashboardResponse, error) {
+	dash, err := s.vendorRepo.GetVendorDashboard(ctx, req.VendorId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch dashboard data: %v", err)
+	}
+
+	return &pb.GetVendorDashboardResponse{
+		TotalClientsServed: dash.TotalClientsServed,
+		TotalBookings:      dash.TotalBookings,
+		TotalRevenue:       dash.TotalRevenue,
+	}, nil
+}
+
+func (s *VendorService) GetVendorServices(ctx context.Context, req *pb.GetVendorServicesRequest) (*pb.GetVendorServicesResponse, error) {
+	if s.vendorRepo == nil {
+		return nil, status.Errorf(codes.Internal, "vendorRepo is not initialized")
+	}
+
+	if req.VendorId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vendor_id is required")
+	}
+
+	services, err := s.vendorRepo.GetServicesByVendor(ctx, req.VendorId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch services: %v", err)
+	}
+
+	if len(services) == 0 {
+		return &pb.GetVendorServicesResponse{Services: []*pb.Service{}}, nil
+	}
+
+	var serviceList []*pb.Service
+	for _, service := range services {
+		var additionalHourPrice int64
+		if service.AdditionalHourPrice != nil {
+			additionalHourPrice = int64(*service.AdditionalHourPrice)
+		}
+
+		serviceList = append(serviceList, &pb.Service{
+			Id:                  service.ID.String(),
+			ServiceTitle:        service.ServiceTitle,
+			YearOfExperience:    int64(service.YearOfExperience),
+			AvailableDate:       service.AvailableDate.Format(time.RFC3339),
+			ServiceDescription:  service.ServiceDescription,
+			CancellationPolicy:  service.CancellationPolicy,
+			TermsAndConditions:  service.TermsAndConditions,
+			ServiceDuration:     int64(service.ServiceDuration),
+			ServicePrice:        int64(service.ServicePrice),
+			AdditionalHourPrice: additionalHourPrice,
+		})
+	}
+
+	return &pb.GetVendorServicesResponse{
+		Services: serviceList,
+	}, nil
+}

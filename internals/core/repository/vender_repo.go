@@ -8,6 +8,7 @@ import (
 
 	auth "github.com/AthulKrishna2501/zyra-auth-service/internals/core/models"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
+	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models/requests"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models/responses"
 
 	"github.com/google/uuid"
@@ -31,6 +32,8 @@ type VendorRepository interface {
 	GetVendorByID(vendorID string) (*auth.User, error)
 	UpdateVendorPassword(vendorID string, newPassword string) error
 	GetVendorStatus(vendorID string) (*auth.User, error)
+	GetVendorDashboard(ctx context.Context, vendorID string) (*requests.VendorDashboard, error)
+	GetServicesByVendor(ctx context.Context, vendorID string) ([]models.Service, error)
 }
 
 func NewVendorRepository(db *gorm.DB) VendorRepository {
@@ -124,15 +127,6 @@ func (r *VendorStorage) FindVendorProfile(ctx context.Context, vendorID uuid.UUI
 		return nil, err
 	}
 
-	err = r.DB.
-		Table("categories").
-		Select("categories.category_name").Where("categories.vendor_id = ?", vendorID).
-		Scan(&category).Error
-
-	if err != nil {
-		return nil, err
-	}
-
 	log.Print("Vendor Profile details:", vendorProfile)
 
 	response := &responses.VendorProfileResponse{
@@ -217,4 +211,31 @@ func (r *VendorStorage) GetVendorStatus(vendorID string) (*auth.User, error) {
 		return nil, errors.New("vendor not found")
 	}
 	return &vendor, nil
+}
+
+func (s *VendorStorage) GetVendorDashboard(ctx context.Context, vendorID string) (*requests.VendorDashboard, error) {
+	var dashboard requests.VendorDashboard
+
+	err := s.DB.Raw(`
+        SELECT 
+            COUNT(DISTINCT client_id) AS total_clients_served,
+            COUNT(*) AS total_bookings,
+            COALESCE(SUM(price), 0) AS total_revenue
+        FROM bookings
+        WHERE vendor_id = ?`, vendorID).Scan(&dashboard).Error
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &dashboard, nil
+}
+
+func (r *VendorStorage) GetServicesByVendor(ctx context.Context, vendorID string) ([]models.Service, error) {
+	var services []models.Service
+	err := r.DB.WithContext(ctx).Where("vendor_id = ?", vendorID).Find(&services).Error
+	if err != nil {
+		return nil, err
+	}
+	return services, nil
 }

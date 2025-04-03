@@ -10,7 +10,7 @@ import (
 type Category struct {
 	ID           uuid.UUID `json:"id" gorm:"type:uuid;primaryKey;default:gen_random_uuid()"`
 	CategoryID   uuid.UUID `json:"category_id" gorm:"type:uuid;default:gen_random_uuid()"`
-	CategoryName string    `json:"category_name" gorm:"type:varchar(255);"`
+	CategoryName string    `json:"category_name" gorm:"type:varchar(255)"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
@@ -48,3 +48,4 @@ type VendorCategory struct {
 	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt  time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }
+	

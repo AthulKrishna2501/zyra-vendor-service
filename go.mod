@@ -3,7 +3,7 @@ module github.com/AthulKrishna2501/zyra-vendor-service
 go 1.24.1
 
 require (
-	github.com/AthulKrishna2501/proto-repo v0.0.0-20250326035558-6ecc2e6dfe5d
+	github.com/AthulKrishna2501/proto-repo v0.0.0-20250402045625-b9103b83df9d
 	github.com/AthulKrishna2501/zyra-auth-service v0.0.0-20250326043459-f9afef228c5c
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
