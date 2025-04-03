@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/app/config"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/repository"
+	"github.com/AthulKrishna2501/zyra-vendor-service/internals/logger"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
@@ -23,19 +23,17 @@ type VendorService struct {
 	pb.UnimplementedVendorSeviceServer
 	vendorRepo  repository.VendorRepository
 	redisClient *redis.Client
+	log         logger.Logger
 }
 
-func NewVendorService(vendorRepo repository.VendorRepository) *VendorService {
-	return &VendorService{vendorRepo: vendorRepo, redisClient: config.RedisClient}
+func NewVendorService(vendorRepo repository.VendorRepository, logger logger.Logger) *VendorService {
+	return &VendorService{vendorRepo: vendorRepo, redisClient: config.RedisClient, log: logger}
 }
 
 func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCategoryRequest) (*pb.RequestCategoryResponse, error) {
 	if req.CategoryId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Category ID cannot be empty")
 	}
-
-	log.Println(req.CategoryId)
-
 	categoryExists, err := s.vendorRepo.CategoryExists(ctx, req.CategoryId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Error checking category: %v", err)
@@ -84,7 +82,7 @@ func (s *VendorService) ListCategory(ctx context.Context, req *pb.ListCategoryRe
 }
 
 func (s *VendorService) ApproveRejectCategory(ctx context.Context, req *pb.ApproveRejectCategoryRequest) (*pb.ApproveRejectCategoryResponse, error) {
-	log.Printf("Received gRPC request: VendorID=%s, CategoryID=%s, Status=%s", req.VendorId, req.CategoryId, req.Status)
+	s.log.Info("Received gRPC request: VendorID=%s, CategoryID=%s, Status=%s", req.VendorId, req.CategoryId, req.Status)
 
 	if req.Status != "approved" && req.Status != "rejected" {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid status. Allowed values: 'approved', 'rejected'")

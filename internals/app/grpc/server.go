@@ -22,7 +22,7 @@ func StartgRPCServer(VendorRepo repository.VendorRepository, log logger.Logger) 
 			grpc.MaxRecvMsgSize(1024*1024*100),
 			grpc.MaxSendMsgSize(1024*1024*100),
 		)
-		vendorService := services.NewVendorService(VendorRepo)
+		vendorService := services.NewVendorService(VendorRepo, log)
 		vendor.RegisterVendorSeviceServer(grpcServer, vendorService)
 
 		log.Info("gRPC Server started on port 5004")
