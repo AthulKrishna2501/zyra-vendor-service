@@ -63,9 +63,9 @@ func (s *VendorStorage) RequestCategory(ctx context.Context, vendorID, categoryI
 	return nil
 }
 
-func (s *VendorStorage) CategoryExists(ctx context.Context, categoryID string) (bool, error) {
+func (s *VendorStorage) CategoryExists(ctx context.Context, categoryName string) (bool, error) {
 	var count int64
-	err := s.DB.WithContext(ctx).Model(&models.Category{}).Where("category_id = ?", categoryID).Count(&count).Error
+	err := s.DB.WithContext(ctx).Model(&models.Category{}).Where("category_name = ?", categoryName).Count(&count).Error
 	if err != nil {
 		return false, err
 	}

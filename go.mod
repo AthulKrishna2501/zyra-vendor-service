@@ -3,7 +3,7 @@ module github.com/AthulKrishna2501/zyra-vendor-service
 go 1.24.1
 
 require (
-	github.com/AthulKrishna2501/proto-repo v0.0.0-20250405070738-7f6a60f8de83
+	github.com/AthulKrishna2501/proto-repo v0.0.0-20250405112454-a1ff16d8dc1b
 	github.com/AthulKrishna2501/zyra-auth-service v0.0.0-20250326043459-f9afef228c5c
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
@@ -11,7 +11,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/viper v1.20.0
 	golang.org/x/crypto v0.36.0
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
 )
@@ -59,6 +59,6 @@ require (
 	golang.org/x/sys v0.31.0 // indirect
 	golang.org/x/text v0.23.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
-	google.golang.org/protobuf v1.36.5 // indirect
+	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

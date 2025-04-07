@@ -31,10 +31,10 @@ func NewVendorService(vendorRepo repository.VendorRepository, logger logger.Logg
 }
 
 func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCategoryRequest) (*pb.RequestCategoryResponse, error) {
-	if req.CategoryId == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "Category ID cannot be empty")
+	if req.CategoryName == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "Category name cannot be empty")
 	}
-	categoryExists, err := s.vendorRepo.CategoryExists(ctx, req.CategoryId)
+	categoryExists, err := s.vendorRepo.CategoryExists(ctx, req.CategoryName)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "Error checking category: %v", err)
 	}
@@ -51,7 +51,7 @@ func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCate
 		return nil, status.Errorf(codes.AlreadyExists, "Vendor has already requested for category")
 	}
 
-	if err := s.vendorRepo.RequestCategory(ctx, req.VendorId, req.CategoryId); err != nil {
+	if err := s.vendorRepo.RequestCategory(ctx, req.VendorId, req.CategoryName); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create request: %v", err)
 	}
 
@@ -74,6 +74,7 @@ func (s *VendorService) ListCategory(ctx context.Context, req *pb.ListCategoryRe
 			CategoryId:   cat.CategoryID.String(),
 			CategoryName: cat.CategoryName,
 		})
+
 	}
 
 	return &pb.ListCategoryResponse{
