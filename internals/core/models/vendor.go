@@ -40,7 +40,7 @@ type Service struct {
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 
-	Vendor models.User `gorm:"foreignKey:VendorID;references:ID;constraint:OnDelete:CASCADE"`
+	Vendor models.User `gorm:"foreignKey:VendorID;references:UserID;constraint:OnDelete:CASCADE"`
 }
 
 type VendorCategory struct {
