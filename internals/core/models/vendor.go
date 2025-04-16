@@ -20,6 +20,7 @@ type CategoryRequest struct {
 	VendorID     uuid.UUID `json:"vendor_id" gorm:"type:uuid;not null"`
 	CategoryID   uuid.UUID `json:"category_id" gorm:"type:uuid;not null"`
 	CategoryName string    `json:"category_name" gorm:"type:varchar(255)"`
+	VendorName   string    `json:"vendor_name" gorm:"type:varchar(255)"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 }
 

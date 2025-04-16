@@ -1,5 +1,7 @@
 package responses
 
+import "time"
+
 type VendorProfileResponse struct {
 	UserID        string `json:"vendor_id" gorm:"column:user_id"`
 	FirstName     string `json:"first_name" gorm:"column:first_name"`
@@ -9,4 +11,13 @@ type VendorProfileResponse struct {
 	PhoneNumber   string `json:"phone_number" gorm:"column:phone"`
 	Category      string `json:"category"`
 	RequestStatus string `json:"status" gorm:"column:status"`
+}
+
+type BookingInfo struct {
+	BookingID  string
+	ClientName string
+	Service    string
+	Date       time.Time
+	Price      int
+	Status     string
 }
