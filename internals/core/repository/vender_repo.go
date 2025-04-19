@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 
+	adminModel "github.com/AthulKrishna2501/zyra-admin-service/internals/core/models"
 	auth "github.com/AthulKrishna2501/zyra-auth-service/internals/core/models"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models/requests"
@@ -34,6 +35,11 @@ type VendorRepository interface {
 	GetVendorStatus(vendorID string) (*auth.User, error)
 	GetVendorDashboard(ctx context.Context, vendorID string) (*requests.VendorDashboard, error)
 	GetServicesByVendor(ctx context.Context, vendorID string) ([]models.Service, error)
+	GetBookingsByVendor(ctx context.Context, vendorID string, bookings *[]responses.BookingInfo) error
+	GetBookingById(ctx context.Context, bookingId string) (*adminModel.Booking, error)
+	UpdateBookingStatus(ctx context.Context, bookingId string, status string) error
+	AddToVendorWallet(ctx context.Context, vendorId string, amount int64) error
+	GetWalletBalance(ctx context.Context, vendorID string) (int64, error)
 }
 
 func NewVendorRepository(db *gorm.DB) VendorRepository {
@@ -42,20 +48,24 @@ func NewVendorRepository(db *gorm.DB) VendorRepository {
 	}
 }
 
-func (s *VendorStorage) RequestCategory(ctx context.Context, vendorID, categoryId string) error {
+func (s *VendorStorage) RequestCategory(ctx context.Context, vendorID, categoryName string) error {
 	vendorUUID, err := uuid.Parse(vendorID)
 	if err != nil {
 		return fmt.Errorf("invalid vendor ID format: %v", err)
 	}
 
-	categoryUUID, err := uuid.Parse(categoryId)
+	var category models.Category
+	err = s.DB.WithContext(ctx).
+		Where("category_name = ?", categoryName).
+		First(&category).Error
 	if err != nil {
-		return fmt.Errorf("invalid vendor ID format: %v", err)
+		return fmt.Errorf("category with name '%s' not found: %v", categoryName, err)
 	}
 	categoryRequest := models.CategoryRequest{
 		VendorID:   vendorUUID,
-		CategoryID: categoryUUID,
+		CategoryID: category.CategoryID,
 	}
+
 	result := s.DB.WithContext(ctx).Create(&categoryRequest)
 	if result.Error != nil {
 		return result.Error
@@ -238,4 +248,65 @@ func (r *VendorStorage) GetServicesByVendor(ctx context.Context, vendorID string
 		return nil, err
 	}
 	return services, nil
+}
+
+func (r *VendorStorage) GetBookingsByVendor(ctx context.Context, vendorID string, bookings *[]responses.BookingInfo) error {
+	query := `
+    SELECT 
+        b.booking_id AS booking_id,
+        ud.first_name || ' ' || ud.last_name AS client_name,
+        b.service AS service,
+        b.date AS date,
+        b.price AS price,
+        b.status AS status
+    FROM bookings b
+    JOIN user_details ud ON b.client_id = ud.user_id
+    WHERE b.vendor_id = ?
+`
+
+	return r.DB.WithContext(ctx).Raw(query, vendorID).Scan(bookings).Error
+}
+
+func (r *VendorStorage) GetBookingById(ctx context.Context, bookingId string) (*adminModel.Booking, error) {
+	var booking adminModel.Booking
+	err := r.DB.WithContext(ctx).Where("booking_id = ?", bookingId).First(&booking).Error
+	if err != nil {
+		return nil, err
+	}
+	return &booking, nil
+}
+
+func (r *VendorStorage) UpdateBookingStatus(ctx context.Context, bookingId string, status string) error {
+	return r.DB.WithContext(ctx).Model(&adminModel.Booking{}).Where("booking_id = ?", bookingId).Update("status", status).Error
+}
+
+func (r *VendorStorage) AddToVendorWallet(ctx context.Context, vendorId string, amount int64) error {
+	var wallet models.Wallet
+
+	err := r.DB.WithContext(ctx).Where("vendor_id = ?", vendorId).First(&wallet).Error
+
+	vendorUUID, _ := uuid.Parse(vendorId)
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		newWallet := models.Wallet{
+			VendorID:      vendorUUID,
+			WalletBalance: amount,
+		}
+		return r.DB.WithContext(ctx).Create(&newWallet).Error
+	} else if err != nil {
+		return err
+	}
+
+	return r.DB.WithContext(ctx).
+		Model(&wallet).
+		Update("wallet_balance", gorm.Expr("wallet_balance + ?", amount)).Error
+
+}
+
+func (r *VendorStorage) GetWalletBalance(ctx context.Context, vendorID string) (int64, error) {
+	var wallet models.Wallet
+	err := r.DB.WithContext(ctx).Where("vendor_id = ?", vendorID).First(&wallet).Error
+	if err != nil {
+		return 0, err
+	}
+	return wallet.WalletBalance, nil
 }

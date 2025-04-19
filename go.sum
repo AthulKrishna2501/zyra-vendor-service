@@ -1,5 +1,15 @@
 github.com/AthulKrishna2501/proto-repo v0.0.0-20250405112454-a1ff16d8dc1b h1:nz0K1FuGku6r6g4oI4q4opiovfxLDzYtGgkidKT2KBA=
 github.com/AthulKrishna2501/proto-repo v0.0.0-20250405112454-a1ff16d8dc1b/go.mod h1:Qg9liZ+nX4h6Z/ievx808AlIt5CU3QIhaECWR0uFdCs=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250416060120-a07d43809cf3 h1:hkFZkb9CP5CR0qZ0HhGtaoE4NE9ZJn0XBnPfbM5XTas=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250416060120-a07d43809cf3/go.mod h1:9zBi50lCPy6xUnagd3y8lFkepeE6HgSpl+j/8zdcljU=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250416181408-e753de56c26a h1:QxCt9S5Jio5VoNNnksuBbqX3MFMeQNMlWGO2ZrIPLac=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250416181408-e753de56c26a/go.mod h1:9zBi50lCPy6xUnagd3y8lFkepeE6HgSpl+j/8zdcljU=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250417034627-6bf1f1791931 h1:6b0LXdhU34Q2oErNE3R0nr/WsA3dDWGD/oYGA6xE2MM=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250417034627-6bf1f1791931/go.mod h1:9zBi50lCPy6xUnagd3y8lFkepeE6HgSpl+j/8zdcljU=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250417041400-7b53a8571ca7 h1:TtCrqRVtV6gqwHdkYS+3QwafauW4jj2Xerp4+B7hQSg=
+github.com/AthulKrishna2501/proto-repo v0.0.0-20250417041400-7b53a8571ca7/go.mod h1:9zBi50lCPy6xUnagd3y8lFkepeE6HgSpl+j/8zdcljU=
+github.com/AthulKrishna2501/zyra-admin-service v0.0.0-20250416190605-36b99e39a1c4 h1:tL6eKKd04T4rsDRJudRqotnvLN9tMlXPEQT3tMenHBo=
+github.com/AthulKrishna2501/zyra-admin-service v0.0.0-20250416190605-36b99e39a1c4/go.mod h1:EKXVUGGw4VxvMUTgdjKZpWYwUfA3OIMwLf6y8Xli/Wo=
 github.com/AthulKrishna2501/zyra-auth-service v0.0.0-20250326043459-f9afef228c5c h1:dx/34CESN1fNhxNgjpzg7xXFC6y32RpLyn3OPD57oJM=
 github.com/AthulKrishna2501/zyra-auth-service v0.0.0-20250326043459-f9afef228c5c/go.mod h1:O+QgY/SV46uPxtKVZdasZn5yejeHieK5M8hI2/KNZOs=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=

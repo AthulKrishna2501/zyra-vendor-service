@@ -10,6 +10,7 @@ import (
 	pb "github.com/AthulKrishna2501/proto-repo/vendor"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/app/config"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
+	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models/responses"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/repository"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/logger"
 	"github.com/google/uuid"
@@ -17,6 +18,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type VendorService struct {
@@ -31,6 +33,7 @@ func NewVendorService(vendorRepo repository.VendorRepository, logger logger.Logg
 }
 
 func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCategoryRequest) (*pb.RequestCategoryResponse, error) {
+	s.log.Info("Category ID in Request Category:", req.GetVendorId())
 	if req.CategoryName == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Category name cannot be empty")
 	}
@@ -51,7 +54,7 @@ func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCate
 		return nil, status.Errorf(codes.AlreadyExists, "Vendor has already requested for category")
 	}
 
-	if err := s.vendorRepo.RequestCategory(ctx, req.VendorId, req.CategoryName); err != nil {
+	if err := s.vendorRepo.RequestCategory(ctx, req.GetVendorId(), req.GetCategoryName()); err != nil {
 		return nil, status.Errorf(codes.Internal, "Failed to create request: %v", err)
 	}
 
@@ -323,5 +326,71 @@ func (s *VendorService) GetVendorServices(ctx context.Context, req *pb.GetVendor
 
 	return &pb.GetVendorServicesResponse{
 		Services: serviceList,
+	}, nil
+}
+
+func (s *VendorService) GetBookingRequests(ctx context.Context, req *pb.GetBookingRequestsRequest) (*pb.GetBookingRequestsResponse, error) {
+	if req.VendorId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vendor_id is required")
+	}
+
+	var bookings []responses.BookingInfo
+
+	err := s.vendorRepo.GetBookingsByVendor(ctx, req.VendorId, &bookings)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch bookings: %v", err)
+	}
+
+	var bookingList []*pb.BookingRequest
+	for _, booking := range bookings {
+		bookingList = append(bookingList, &pb.BookingRequest{
+			BookingId:  booking.BookingID,
+			ClientName: booking.ClientName,
+			Service:    booking.Service,
+			Date:       timestamppb.New(booking.Date),
+			Price:      int32(booking.Price),
+			Status:     booking.Status,
+		})
+	}
+
+	return &pb.GetBookingRequestsResponse{
+		Bookings: bookingList,
+	}, nil
+}
+
+func (s *VendorService) ApproveBooking(ctx context.Context, req *pb.ApproveBookingRequest) (*pb.ApproveBookingResponse, error) {
+	if req.BookingId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "booking_id is required")
+	}
+
+	if req.VendorId == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "vendor_id is required")
+	}
+
+	booking, err := s.vendorRepo.GetBookingById(ctx, req.BookingId)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "booking not found: %v", err)
+	}
+
+	vendorUUID, _ := uuid.Parse(req.VendorId)
+
+	if booking.VendorID != vendorUUID {
+		return nil, status.Errorf(codes.PermissionDenied, "booking does not belong to the vendor")
+	}
+
+	err = s.vendorRepo.UpdateBookingStatus(ctx, req.BookingId, req.Status)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to update booking status: %v", err)
+	}
+
+	if req.Status == "approved" {
+		err = s.vendorRepo.AddToVendorWallet(ctx, req.VendorId, int64(booking.Price))
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to update vendor wallet: %v", err)
+		}
+	}
+
+	return &pb.ApproveBookingResponse{
+		Message: "Booking approved successfully",
 	}, nil
 }

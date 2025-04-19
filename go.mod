@@ -1,9 +1,9 @@
 module github.com/AthulKrishna2501/zyra-vendor-service
 
-go 1.24.1
+go 1.24.2
 
 require (
-	github.com/AthulKrishna2501/proto-repo v0.0.0-20250405112454-a1ff16d8dc1b
+	github.com/AthulKrishna2501/proto-repo v0.0.0-20250417041400-7b53a8571ca7
 	github.com/AthulKrishna2501/zyra-auth-service v0.0.0-20250326043459-f9afef228c5c
 	github.com/gin-gonic/gin v1.10.0
 	github.com/google/uuid v1.6.0
@@ -17,6 +17,7 @@ require (
 )
 
 require (
+	github.com/AthulKrishna2501/zyra-admin-service v0.0.0-20250416190605-36b99e39a1c4 // indirect
 	github.com/bytedance/sonic v1.13.1 // indirect
 	github.com/bytedance/sonic/loader v0.2.4 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
