@@ -35,7 +35,7 @@ type Service struct {
 	TermsAndConditions  string    `json:"terms_and_conditions" gorm:"type:text"`
 	ServiceDuration     int       `json:"service_duration" gorm:"not null"`
 	ServicePrice        int       `json:"service_price" gorm:"not null"`
-	AdditionalHourPrice *int      `json:"additional_hour_price" gorm:""`
+	AdditionalHourPrice int       `json:"additional_hour_price" gorm:""`
 
 	CreatedAt time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt time.Time `json:"updated_at" gorm:"autoUpdateTime"`
@@ -52,10 +52,12 @@ type VendorCategory struct {
 }
 
 type Wallet struct {
-	ID            uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
-	VendorID      uuid.UUID `gorm:"type:uuid;not null;uniqueIndex"`
-	WalletBalance int64     `gorm:"default:0"`
-	CreatedAt     time.Time
-	UpdatedAt     time.Time
+	ID               uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	VendorID         uuid.UUID `gorm:"type:uuid;uniqueIndex"`
+	ClientID         uuid.UUID `gorn:"type:uuid;uniqueIndex"`
+	WalletBalance    int64     `gorm:"default:0"`
+	TotalDeposits    int64     `gorm:"default:0"`
+	TotalWithdrawals int64     `gorm:"default:0"`
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
-
