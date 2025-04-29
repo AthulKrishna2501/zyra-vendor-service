@@ -26,7 +26,7 @@ func main() {
 
 	VendorRepo := repository.NewVendorRepository(db)
 
-	err = grpc.StartgRPCServer(VendorRepo, log)
+	err = grpc.StartgRPCServer(VendorRepo, log, configEnv)
 
 	if err != nil {
 		log.Error("Faile to start gRPC server", err)

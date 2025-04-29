@@ -20,4 +20,15 @@ type BookingInfo struct {
 	Date       time.Time
 	Price      int
 	Status     string
+	CreatedAt  time.Time
+}
+
+type Result struct {
+	Month   string
+	Revenue int64
+}
+
+type ServiceStat struct {
+	Service   string
+	TotalBookings int32
 }

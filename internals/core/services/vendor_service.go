@@ -8,11 +8,14 @@ import (
 	"time"
 
 	pb "github.com/AthulKrishna2501/proto-repo/vendor"
+	adminModel "github.com/AthulKrishna2501/zyra-admin-service/internals/core/models"
+	clientModel "github.com/AthulKrishna2501/zyra-client-service/internals/core/models"
+
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/app/config"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models"
-	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/models/responses"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/core/repository"
 	"github.com/AthulKrishna2501/zyra-vendor-service/internals/logger"
+	"github.com/AthulKrishna2501/zyra-vendor-service/utils"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"golang.org/x/crypto/bcrypt"
@@ -26,10 +29,11 @@ type VendorService struct {
 	vendorRepo  repository.VendorRepository
 	redisClient *redis.Client
 	log         logger.Logger
+	cfg         config.Config
 }
 
-func NewVendorService(vendorRepo repository.VendorRepository, logger logger.Logger) *VendorService {
-	return &VendorService{vendorRepo: vendorRepo, redisClient: config.RedisClient, log: logger}
+func NewVendorService(vendorRepo repository.VendorRepository, logger logger.Logger, cfg config.Config) *VendorService {
+	return &VendorService{vendorRepo: vendorRepo, redisClient: config.RedisClient, log: logger, cfg: cfg}
 }
 
 func (s *VendorService) RequestCategory(ctx context.Context, req *pb.RequestCategoryRequest) (*pb.RequestCategoryResponse, error) {
@@ -184,16 +188,17 @@ func (s *VendorService) CreateService(ctx context.Context, req *pb.CreateService
 	}
 
 	service := models.Service{
-		ID:                 serviceID,
-		VendorID:           uuid.MustParse(req.VendorId),
-		ServiceTitle:       req.ServiceTitle,
-		AvailableDate:      availableDate,
-		YearOfExperience:   int(req.YearOfExperience),
-		ServiceDescription: req.ServiceDescription,
-		CancellationPolicy: req.CancellationPolicy,
-		TermsAndConditions: req.TermsAndConditions,
-		ServiceDuration:    int(req.ServiceDuration),
-		ServicePrice:       int(req.ServicePrice),
+		ID:                  serviceID,
+		VendorID:            uuid.MustParse(req.VendorId),
+		ServiceTitle:        req.ServiceTitle,
+		AvailableDate:       availableDate,
+		YearOfExperience:    int(req.YearOfExperience),
+		ServiceDescription:  req.ServiceDescription,
+		CancellationPolicy:  req.CancellationPolicy,
+		TermsAndConditions:  req.TermsAndConditions,
+		ServiceDuration:     int(req.ServiceDuration),
+		ServicePrice:        int(req.ServicePrice),
+		AdditionalHourPrice: int(req.AdditionalHourPrice),
 	}
 
 	if err := s.vendorRepo.CreateService(&service); err != nil {
@@ -219,20 +224,16 @@ func (s *VendorService) UpdateService(ctx context.Context, req *pb.UpdateService
 	}
 
 	updatedService := models.Service{
-		ID:                 serviceUUID,
-		ServiceTitle:       req.ServiceTitle,
-		YearOfExperience:   int(req.YearOfExperience),
-		ServiceDescription: req.ServiceDescription,
-		AvailableDate:      availableDate,
-		CancellationPolicy: req.CancellationPolicy,
-		TermsAndConditions: req.TermsAndConditions,
-		ServiceDuration:    int(req.ServiceDuration),
-		ServicePrice:       int(req.ServicePrice),
-	}
-
-	if req.AdditionalHourPrice != nil {
-		price := int(*req.AdditionalHourPrice)
-		updatedService.AdditionalHourPrice = &price
+		ID:                  serviceUUID,
+		ServiceTitle:        req.ServiceTitle,
+		YearOfExperience:    int(req.YearOfExperience),
+		ServiceDescription:  req.ServiceDescription,
+		AvailableDate:       availableDate,
+		CancellationPolicy:  req.CancellationPolicy,
+		TermsAndConditions:  req.TermsAndConditions,
+		ServiceDuration:     int(req.ServiceDuration),
+		ServicePrice:        int(req.ServicePrice),
+		AdditionalHourPrice: int(*req.AdditionalHourPrice),
 	}
 
 	err = s.vendorRepo.UpdateService(serviceUUID, updatedService)
@@ -278,11 +279,55 @@ func (s *VendorService) GetVendorDashboard(ctx context.Context, req *pb.GetVendo
 		return nil, status.Errorf(codes.Internal, "failed to fetch dashboard data: %v", err)
 	}
 
-	return &pb.GetVendorDashboardResponse{
-		TotalClientsServed: dash.TotalClientsServed,
-		TotalBookings:      dash.TotalBookings,
-		TotalRevenue:       dash.TotalRevenue,
-	}, nil
+	monthlyRevenue, err := s.vendorRepo.GetMonthlyRevenue(ctx, req.VendorId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch monthly revenue trend: %v", err)
+	}
+
+	var revenues []*pb.MonthRevenue
+	for _, res := range monthlyRevenue {
+		revenues = append(revenues, &pb.MonthRevenue{
+			Month:   res.Month,
+			Revenue: res.Revenue,
+		})
+	}
+
+	topServices, err := s.vendorRepo.GetTopServices(ctx, req.VendorId)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch top services: %v", err)
+	}
+
+	averageRevenuePerBooking := float64(0)
+	if dash.TotalBookings > 0 {
+		averageRevenuePerBooking = float64(dash.TotalRevenue) / float64(dash.TotalBookings)
+	}
+
+	bookingGrowthRate := utils.CalculateGrowthRate(int32(dash.CurrentMonthBookings), int32(dash.PreviousMonthBookings))
+	clientGrowthRate := utils.CalculateGrowthRate(int32(dash.CurrentMonthClients), int32(dash.PreviousMonthClients))
+
+	var topServicesResp []*pb.ServiceStat
+	for _, svc := range topServices {
+		topServicesResp = append(topServicesResp, &pb.ServiceStat{
+			ServiceName: svc.Service,
+			Bookings:    svc.TotalBookings,
+		})
+	}
+
+	resp := &pb.GetVendorDashboardResponse{
+		TotalClientsServed:       dash.TotalClientsServed,
+		TotalBookings:            dash.TotalBookings,
+		TotalRevenue:             dash.TotalRevenue,
+		MonthlyRevenueTrend:      revenues,
+		TopServices:              topServicesResp,
+		AverageRevenuePerBooking: averageRevenuePerBooking,
+		BookingGrowthRate:        bookingGrowthRate,
+		ClientGrowthRate:         clientGrowthRate,
+		PendingPayments:          dash.PendingPayments,
+		AverageRating:            dash.AverageRating,
+		TotalReviews:             dash.TotalReviews,
+	}
+
+	return resp, nil
 }
 
 func (s *VendorService) GetVendorServices(ctx context.Context, req *pb.GetVendorServicesRequest) (*pb.GetVendorServicesResponse, error) {
@@ -305,11 +350,6 @@ func (s *VendorService) GetVendorServices(ctx context.Context, req *pb.GetVendor
 
 	var serviceList []*pb.Service
 	for _, service := range services {
-		var additionalHourPrice int64
-		if service.AdditionalHourPrice != nil {
-			additionalHourPrice = int64(*service.AdditionalHourPrice)
-		}
-
 		serviceList = append(serviceList, &pb.Service{
 			Id:                  service.ID.String(),
 			ServiceTitle:        service.ServiceTitle,
@@ -320,7 +360,7 @@ func (s *VendorService) GetVendorServices(ctx context.Context, req *pb.GetVendor
 			TermsAndConditions:  service.TermsAndConditions,
 			ServiceDuration:     int64(service.ServiceDuration),
 			ServicePrice:        int64(service.ServicePrice),
-			AdditionalHourPrice: additionalHourPrice,
+			AdditionalHourPrice: int64(service.AdditionalHourPrice),
 		})
 	}
 
@@ -334,15 +374,13 @@ func (s *VendorService) GetBookingRequests(ctx context.Context, req *pb.GetBooki
 		return nil, status.Errorf(codes.InvalidArgument, "vendor_id is required")
 	}
 
-	var bookings []responses.BookingInfo
-
-	err := s.vendorRepo.GetBookingsByVendor(ctx, req.VendorId, &bookings)
+	vendorBookings, err := s.vendorRepo.GetVendorBookings(ctx, req.VendorId)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to fetch bookings: %v", err)
 	}
 
 	var bookingList []*pb.BookingRequest
-	for _, booking := range bookings {
+	for _, booking := range vendorBookings {
 		bookingList = append(bookingList, &pb.BookingRequest{
 			BookingId:  booking.BookingID,
 			ClientName: booking.ClientName,
@@ -350,6 +388,7 @@ func (s *VendorService) GetBookingRequests(ctx context.Context, req *pb.GetBooki
 			Date:       timestamppb.New(booking.Date),
 			Price:      int32(booking.Price),
 			Status:     booking.Status,
+			BookedAt:   booking.CreatedAt.String(),
 		})
 	}
 
@@ -366,8 +405,7 @@ func (s *VendorService) ApproveBooking(ctx context.Context, req *pb.ApproveBooki
 	if req.VendorId == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "vendor_id is required")
 	}
-
-	booking, err := s.vendorRepo.GetBookingById(ctx, req.BookingId)
+	booking, err := s.vendorRepo.GetBookingById(ctx, req.GetBookingId())
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "booking not found: %v", err)
 	}
@@ -383,14 +421,104 @@ func (s *VendorService) ApproveBooking(ctx context.Context, req *pb.ApproveBooki
 		return nil, status.Errorf(codes.Internal, "failed to update booking status: %v", err)
 	}
 
-	if req.Status == "approved" {
-		err = s.vendorRepo.AddToVendorWallet(ctx, req.VendorId, int64(booking.Price))
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to update vendor wallet: %v", err)
+	if req.Status == "rejected" {
+
+		newTransaction := &clientModel.Transaction{
+			UserID:        booking.ClientID,
+			Purpose:       "Vendor Booking",
+			AmountPaid:    booking.Price,
+			PaymentMethod: "wallet",
+			DateOfPayment: time.Now(),
+			PaymentStatus: "refunded",
 		}
+
+		newAdminWalletTransaction := &adminModel.AdminWalletTransaction{
+			Date:   time.Now(),
+			Type:   "Vendor Booking",
+			Amount: float64(booking.Price),
+			Status: "refunded",
+		}
+
+		clientIDStr := booking.ClientID.String()
+
+		err = s.vendorRepo.RefundAmount(ctx, s.cfg.ADMIN_EMAIL, clientIDStr, booking.Price)
+
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to refund amount %v", err)
+		}
+
+		err = s.vendorRepo.CreateTransaction(ctx, newTransaction)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create transaction: %v", err)
+		}
+
+		err = s.vendorRepo.CreateAdminWalletTransaction(ctx, newAdminWalletTransaction)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to create admin wallet transaction")
+		}
+
+		return &pb.ApproveBookingResponse{
+			Message: fmt.Sprintf("Booking %s successfully", req.Status),
+		}, nil
+
+	}
+
+	err = s.vendorRepo.UpdateVendorApproval(ctx, req.BookingId, true)
+	if err != nil {
+
+		return nil, status.Errorf(codes.Internal, "failed to update vendor approval: %v", err)
+	}
+	if booking.IsVendorApproved && booking.IsClientApproved && !booking.IsFundReleased {
+		err = s.vendorRepo.ReleasePaymentToVendor(ctx, booking.VendorID.String(), float64(booking.Price))
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to release payment: %v", err)
+		}
+
+		err = s.vendorRepo.MarkBookingAsConfirmedAndReleased(ctx, req.BookingId)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to update booking status: %v", err)
+		}
+
 	}
 
 	return &pb.ApproveBookingResponse{
-		Message: "Booking approved successfully",
+		Message: fmt.Sprintf("Booking %s successfully", req.Status),
+	}, nil
+}
+
+func (s *VendorService) GetVendorWallet(ctx context.Context, req *pb.GetVendorWalletRequest) (*pb.GetVendorWalletResponse, error) {
+	vendorID := req.GetVendorId()
+	wallet, err := s.vendorRepo.GetVendorWallet(ctx, vendorID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch client wallet: %v", err)
+	}
+
+	return &pb.GetVendorWalletResponse{
+		Balance:          float32(wallet.WalletBalance),
+		TotalDeposits:    float32(wallet.TotalDeposits),
+		TotalWithdrawals: float32(wallet.TotalWithdrawals),
+	}, nil
+}
+
+func (s *VendorService) GetVendorTransactions(ctx context.Context, req *pb.ViewVendorTransactionsRequest) (*pb.ViewVendorTransactionResponse, error) {
+	vendorID := req.GetVendorId()
+	walletTransactions, err := s.vendorRepo.GetVendorTransactions(ctx, vendorID)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to retrieve admin wallet transactions: %v", err.Error())
+	}
+
+	var protoTransactions []*pb.VendorTransaction
+	for _, txn := range walletTransactions {
+		protoTransactions = append(protoTransactions, &pb.VendorTransaction{
+			TransactionId: txn.TransactionID.String(),
+			Date:          txn.DateOfPayment.String(),
+			Type:          txn.Purpose,
+			Amount:        float32(txn.AmountPaid),
+			Status:        txn.PaymentStatus,
+		})
+	}
+
+	return &pb.ViewVendorTransactionResponse{
+		Transactions: protoTransactions,
 	}, nil
 }

@@ -7,14 +7,15 @@ import (
 )
 
 type Config struct {
-	PORT   string `mapstructure:"PORT"`
-	DB_URL string `mapstructure:"DB_URL"`
+	PORT        string `mapstructure:"PORT"`
+	DB_URL      string `mapstructure:"DB_URL"`
+	ADMIN_EMAIL string `mapstructure:"ADMIN_EMAIL"`
 }
 
 func LoadConfig() (cfg Config, err error) {
 	viper.SetConfigType("env")
 	viper.AutomaticEnv()
-
+ 
 	viper.SetConfigFile(".env")
 	if err := viper.ReadInConfig(); err == nil {
 		log.Println("Loaded .env from the current directory")
