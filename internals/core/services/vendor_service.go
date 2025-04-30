@@ -182,6 +182,18 @@ func (s *VendorService) CreateService(ctx context.Context, req *pb.CreateService
 		return nil, errors.New("vendor is not approved to add a service")
 	}
 
+	isInCategory, err := s.vendorRepo.IsInCategory(req.VendorId)
+
+	if err != nil {
+		return nil, errors.New("failed to check vendor in category")
+	}
+
+	if !isInCategory {
+		return &pb.CreateServiceResponse{
+			Message: "Vendor does not belong to any category. Please assign a category before creating the service.",
+		}, nil
+	}
+
 	var availableDate time.Time
 	if len(req.AvailableDates) > 0 && req.AvailableDates[0] != nil {
 		availableDate = req.AvailableDates[0].AsTime()

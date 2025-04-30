@@ -52,6 +52,7 @@ type VendorRepository interface {
 	GetVendorTransactions(ctx context.Context, vendorID string) ([]clientModel.Transaction, error)
 	GetMonthlyRevenue(ctx context.Context, vendorId string) ([]*responses.Result, error)
 	GetTopServices(ctx context.Context, vendorId string) ([]*responses.ServiceStat, error)
+	IsInCategory(vendorID string) (bool, error)
 }
 
 func NewVendorRepository(db *gorm.DB) VendorRepository {
@@ -613,4 +614,16 @@ func (r *VendorStorage) GetTopServices(ctx context.Context, vendorId string) ([]
 	}
 
 	return services, nil
+}
+
+func (r *VendorStorage) IsInCategory(vendorID string) (bool, error) {
+	var count int64
+	err := r.DB.
+		Model(&models.VendorCategory{}).
+		Where("vendor_id = ?", vendorID).
+		Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
