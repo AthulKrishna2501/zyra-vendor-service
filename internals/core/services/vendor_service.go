@@ -125,7 +125,7 @@ func (s *VendorService) VendorProfile(ctx context.Context, req *pb.VendorProfile
 		PhoneNumber:   vendor.PhoneNumber,
 		ProfileImage:  vendor.ProfileImage,
 		RequestStatus: vendor.RequestStatus,
-		Categories:    vendor.Category,
+		Category:      vendor.CategoryName,
 	}, nil
 }
 

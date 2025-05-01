@@ -137,33 +137,42 @@ func (r *VendorStorage) UpdateCategoryRequestStatus(ctx context.Context, vendorI
 
 func (r *VendorStorage) FindVendorProfile(ctx context.Context, vendorID uuid.UUID) (*responses.VendorProfileResponse, error) {
 	var vendorProfile responses.VendorProfileResponse
-	var category string
-
+	// var category string
 	err := r.DB.
 		Table("users").
-		Select("users.user_id, user_details.first_name, user_details.last_name, users.email, user_details.profile_image, user_details.phone, users.status").
+		Select(`
+			users.user_id,
+			user_details.first_name,
+			user_details.last_name,
+			users.email,
+			user_details.profile_image,
+			user_details.phone,
+			users.status AS request_status,
+			categories.category_name
+		`).
 		Joins("JOIN user_details ON user_details.user_id = users.user_id").
+		Joins("LEFT JOIN vendor_categories ON vendor_categories.vendor_id = users.user_id").
+		Joins("LEFT JOIN categories ON categories.category_id = vendor_categories.category_id").
 		Where("users.user_id = ? AND users.role = ?", vendorID, "vendor").
 		First(&vendorProfile).Error
-
 	if err != nil {
 		return nil, err
 	}
 
-	log.Print("Vendor Profile details:", vendorProfile)
+	// log.Print("Vendor Profile details:", vendorProfile)
 
-	response := &responses.VendorProfileResponse{
-		UserID:        vendorProfile.UserID,
-		FirstName:     vendorProfile.FirstName,
-		LastName:      vendorProfile.LastName,
-		Email:         vendorProfile.Email,
-		ProfileImage:  vendorProfile.ProfileImage,
-		PhoneNumber:   vendorProfile.PhoneNumber,
-		RequestStatus: vendorProfile.RequestStatus,
-		Category:      category,
-	}
+	// response := &responses.VendorProfileResponse{
+	// 	UserID:        vendorProfile.UserID,
+	// 	FirstName:     vendorProfile.FirstName,
+	// 	LastName:      vendorProfile.LastName,
+	// 	Email:         vendorProfile.Email,
+	// 	ProfileImage:  vendorProfile.ProfileImage,
+	// 	PhoneNumber:   vendorProfile.PhoneNumber,
+	// 	RequestStatus: vendorProfile.RequestStatus,
+	// 	CategoryName:  category,
+	// }
 
-	return response, nil
+	return &vendorProfile, nil
 }
 
 func (r *VendorStorage) UpdateVendorProfile(ctx context.Context, vendorID uuid.UUID, updateData map[string]interface{}) error {

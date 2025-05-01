@@ -9,7 +9,7 @@ type VendorProfileResponse struct {
 	Email         string `json:"email" gorm:"column:email"`
 	ProfileImage  string `json:"profile_image" gorm:"column:profile_image"`
 	PhoneNumber   string `json:"phone_number" gorm:"column:phone"`
-	Category      string `json:"category"`
+	CategoryName      string `json:"category_name"`
 	RequestStatus string `json:"status" gorm:"column:status"`
 }
 

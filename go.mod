@@ -3,7 +3,7 @@ module github.com/AthulKrishna2501/zyra-vendor-service
 go 1.24.2
 
 require (
-	github.com/AthulKrishna2501/proto-repo v0.0.0-20250429051728-570c302c961f
+	github.com/AthulKrishna2501/proto-repo v0.0.0-20250430052726-a8b428bedc6a
 	github.com/AthulKrishna2501/zyra-admin-service v0.0.0-20250426171312-2130ac80d7f0
 	github.com/AthulKrishna2501/zyra-auth-service v0.0.0-20250423072851-8d3be65bee5c
 	github.com/AthulKrishna2501/zyra-client-service v0.0.0-20250424094403-43732b577e81
